@@ -52,12 +52,7 @@ jobs:
               if (!r.user) continue;
               latestByUser.set(r.user.login, r);
             }
-
             const approvals = [...latestByUser.values()].filter(r => r.state === 'APPROVED');
-            if (approvals.length === 0) {
-              core.info('No active approvals — nothing to do.');
-              return;
-            }
 
             // Read last stored hash from bot comments
             const { data: comments } = await github.rest.issues.listComments({
@@ -73,24 +68,35 @@ jobs:
               previousHash = m ? m[1] : null;
             }
 
-            // First run after approvals: record hash, keep approvals
-            if (!previousHash) {
+            async function recordHash(message) {
               await github.rest.issues.createComment({
                 owner, repo, issue_number: pr,
                 body: [
                   '### Smart stale approvals',
                   '',
-                  'Baseline diff recorded for current approvals.',
+                  message,
                   '',
                   `${marker} ${currentHash} -->`
                 ].join('\n')
               });
+            }
+
+            // No prior baseline: record current hash so future runs have something to compare against.
+            if (!previousHash) {
+              await recordHash('Baseline diff recorded for current approvals.');
               core.info(`Baseline recorded: ${currentHash}`);
               return;
             }
 
             if (previousHash === currentHash) {
               core.info('PR diff unchanged vs last baseline — keeping approvals.');
+              return;
+            }
+
+            // Diff changed since the last recorded baseline.
+            if (approvals.length === 0) {
+              core.info('Diff changed but no active approvals to dismiss — updating baseline.');
+              await recordHash('Diff changed since the last recorded baseline. No active approvals to dismiss right now; baseline updated so a future approval is compared against the current diff, not a stale one.');
               return;
             }
 
@@ -104,14 +110,4 @@ jobs:
               });
             }
 
-            await github.rest.issues.createComment({
-              owner, repo, issue_number: pr,
-              body: [
-                '### Smart stale approvals',
-                '',
-                'Approvals dismissed because the **PR diff vs base** changed.',
-                'A sync/rebase that does not alter the reviewed diff would have kept them.',
-                '',
-                `${marker} ${currentHash} -->`
-              ].join('\n')
-            });
+            await recordHash('Approvals dismissed because the **PR diff vs base** changed.\nA sync/rebase that does not alter the reviewed diff would have kept them.');
