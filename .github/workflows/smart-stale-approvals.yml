@@ -26,8 +26,18 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           git fetch origin "$BASE_SHA"
-          # Hash of the reviewable surface: path + content vs base
-          HASH=$(git diff --binary "$BASE_SHA"...HEAD | sha256sum | cut -d' ' -f1)
+          # Hash of the reviewable surface: added/removed content only, per file.
+          # Deliberately strips "index <sha>..<sha>" lines and "@@ ... @@" hunk
+          # headers (line numbers + funcname context) because both are affected
+          # by unrelated content elsewhere in the same file - e.g. a sibling PR
+          # editing a different section of the same file and merging first would
+          # otherwise change this hash on the next base-sync even though nothing
+          # in this PR's own diff changed. Known limitation: binary file diffs
+          # and detected renames aren't meaningfully captured by this filter.
+          HASH=$(git diff --binary "$BASE_SHA"...HEAD \
+            | grep -E '^(diff --git |[+-])' \
+            | grep -Ev '^(\+\+\+ |--- )' \
+            | sha256sum | cut -d' ' -f1)
           echo "hash=$HASH" >> "$GITHUB_OUTPUT"
           echo "Current PR diff hash: $HASH"
 
