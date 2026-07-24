@@ -1,0 +1,8 @@
+[Section A]
+Initial content for section A.
+
+[Section B]
+Initial content for section B.
+
+[Section C]
+Initial content for section C.
