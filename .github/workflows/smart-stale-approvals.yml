@@ -33,9 +33,12 @@ jobs:
           # elsewhere in the same file - e.g. a sibling PR editing a different
           # section of the same file and merging first would otherwise change
           # this hash on the next base-sync even though nothing in this PR's own
-          # diff changed. "old mode"/"new mode" lines are captured explicitly
-          # since a chmod-only change (e.g. making a script executable) carries
-          # no +/- lines and would otherwise be silently invisible to the hash.
+          # diff changed. "old mode"/"new mode" lines (chmod on a file that
+          # already existed in the base) and "new file mode"/"deleted file
+          # mode" lines (the executable bit of a file added/removed within
+          # this same PR - a different line format than a plain chmod, easy
+          # to miss) are captured explicitly, since none of them carry +/-
+          # lines and would otherwise be silently invisible to the hash.
           # "GIT binary patch" blocks are captured in full (everything up to the
           # next "diff --git") since binary content changes carry no +/- lines
           # either - without this, modifying an already-diffed binary file (e.g.
@@ -44,7 +47,7 @@ jobs:
           # this filter.
           HASH=$(git diff --binary "$BASE_SHA"...HEAD | awk '
             /^diff --git / { inbinary=0; print; next }
-            /^(old mode|new mode) / { print; next }
+            /^(old mode|new mode|new file mode|deleted file mode) / { print; next }
             /^GIT binary patch$/ { inbinary=1; print; next }
             inbinary { print; next }
             /^[+-]/ && !/^(\+\+\+ |--- )/ { print; next }
