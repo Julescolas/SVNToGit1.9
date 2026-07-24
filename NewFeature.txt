@@ -2,7 +2,7 @@
 Second revision of section A content (v2 test, dev 4's change).
 
 [Section B]
-Initial content for section B.
+Updated content for section B (v2 test, dev 3's change).
 
 [Section C]
 Initial content for section C.
