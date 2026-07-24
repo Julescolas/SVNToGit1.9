@@ -1,1 +1,2 @@
 Hello world!
+Realistic fix: adjusted wording in SimpleC as part of a multi-file change.
