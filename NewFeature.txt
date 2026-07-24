@@ -1,5 +1,5 @@
 [Section A]
-Initial content for section A.
+Updated content for section A (dev 1's change).
 
 [Section B]
 Initial content for section B.
