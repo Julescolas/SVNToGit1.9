@@ -5,4 +5,4 @@ Initial content for section A.
 Initial content for section B.
 
 [Section C]
-Initial content for section C.
+Updated content for section C (dev 2's change).
