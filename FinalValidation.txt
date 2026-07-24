@@ -1,1 +1,2 @@
 Final validation test file - text content.
+Real content change to trigger our own dismissal logic (stage 2).
