@@ -1,2 +1,2 @@
 #!/bin/sh
-echo "test script for chmod robustness test"
+echo "test script for chmod robustness test v2"
