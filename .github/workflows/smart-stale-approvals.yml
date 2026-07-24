@@ -1,0 +1,117 @@
+# .github/workflows/smart-stale-approvals.yml
+name: Smart stale approvals
+
+on:
+  pull_request:
+    types: [synchronize, opened, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  smart-stale-approvals:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Compute current PR diff hash
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch origin "$BASE_SHA"
+          # Hash of the reviewable surface: path + content vs base
+          HASH=$(git diff --binary "$BASE_SHA"...HEAD | sha256sum | cut -d' ' -f1)
+          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+          echo "Current PR diff hash: $HASH"
+
+      - name: Dismiss stale approvals if diff changed
+        uses: actions/github-script@v7
+        env:
+          CURRENT_HASH: ${{ steps.diff.outputs.hash }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request.number;
+            const currentHash = process.env.CURRENT_HASH;
+            const marker = '<!-- smart-stale-approvals-hash:';
+
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner, repo, pull_number: pr, per_page: 100
+            });
+
+            // Latest APPROVED review per user (ignore dismissed/commented)
+            const latestByUser = new Map();
+            for (const r of reviews) {
+              if (!r.user) continue;
+              latestByUser.set(r.user.login, r);
+            }
+
+            const approvals = [...latestByUser.values()].filter(r => r.state === 'APPROVED');
+            if (approvals.length === 0) {
+              core.info('No active approvals — nothing to do.');
+              return;
+            }
+
+            // Read last stored hash from bot comments
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number: pr, per_page: 100
+            });
+            const botComments = comments
+              .filter(c => c.body && c.body.includes(marker))
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            let previousHash = null;
+            if (botComments.length) {
+              const m = botComments[0].body.match(/smart-stale-approvals-hash:\s*([a-f0-9]+)/);
+              previousHash = m ? m[1] : null;
+            }
+
+            // First run after approvals: record hash, keep approvals
+            if (!previousHash) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: pr,
+                body: [
+                  '### Smart stale approvals',
+                  '',
+                  'Baseline diff recorded for current approvals.',
+                  '',
+                  `${marker} ${currentHash} -->`
+                ].join('\n')
+              });
+              core.info(`Baseline recorded: ${currentHash}`);
+              return;
+            }
+
+            if (previousHash === currentHash) {
+              core.info('PR diff unchanged vs last baseline — keeping approvals.');
+              return;
+            }
+
+            core.warning(`Diff changed (${previousHash} → ${currentHash}) — dismissing approvals.`);
+
+            for (const approval of approvals) {
+              await github.rest.pulls.dismissReview({
+                owner, repo, pull_number: pr,
+                review_id: approval.id,
+                message: 'Dismissed: the PR diff changed since this approval (smart-stale-approvals).'
+              });
+            }
+
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: pr,
+              body: [
+                '### Smart stale approvals',
+                '',
+                'Approvals dismissed because the **PR diff vs base** changed.',
+                'A sync/rebase that does not alter the reviewed diff would have kept them.',
+                '',
+                `${marker} ${currentHash} -->`
+              ].join('\n')
+            });
