@@ -1,3 +1,4 @@
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 Updated simpleA with a realistic small fix while PR #4 is open.
 Another unrelated real fix landing on main while PR #25 (rebase test) is open.
+Push a modification of text A
