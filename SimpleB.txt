@@ -1,2 +1,0 @@
-dadadad
-Realistic fix: adjusted wording in SimpleB as part of a multi-file change.
