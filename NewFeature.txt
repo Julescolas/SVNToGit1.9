@@ -5,4 +5,4 @@ Updated content for section A (dev 1's change).
 Updated content for section B (v2 test, dev 3's change).
 
 [Section C]
-Initial content for section C.
+Updated content for section C (dev 2's change).
