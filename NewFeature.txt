@@ -1,5 +1,5 @@
 [Section A]
-Updated content for section A (dev 1's change).
+Second revision of section A content (v2 test, dev 4's change).
 
 [Section B]
 Updated content for section B (v2 test, dev 3's change).
